@@ -5,7 +5,7 @@ from collections.abc import Iterator, Mapping
 from datetime import datetime, timedelta
 from decimal import Decimal
 from fractions import Fraction
-from typing import TypedDict, Union
+from typing import Any, TypedDict, Union
 from typing_extensions import assert_type
 from unittest.mock import _ANY, ANY, AsyncMock, MagicMock, Mock, patch
 
@@ -145,7 +145,7 @@ case.assertDictEqual({}, 1)  # type: ignore
 
 
 @patch("sys.exit")
-def f_default_new(i: int, mock: MagicMock) -> str:
+def f_default_new(i: int, mock: MagicMock[..., Any]) -> str:
     return "asdf"
 
 
@@ -167,7 +167,7 @@ assert_type(f_explicit_new_callable(1), str)
 f_explicit_new_callable("a")  # Same as default new
 
 
-@patch("sys.exit", new=Mock())
+@patch("sys.exit", new=Mock[[], Any]())
 class TestXYZ(unittest.TestCase):
     attr: int = 5
 
@@ -181,7 +181,7 @@ assert_type(TestXYZ.method(), int)
 
 
 with patch("sys.exit") as default_new_enter:
-    assert_type(default_new_enter, Union[MagicMock, AsyncMock])
+    assert_type(default_new_enter, Union[MagicMock[..., Any], AsyncMock[..., Any]])
 
 with patch("sys.exit", new=42) as explicit_new_enter:
     assert_type(explicit_new_enter, int)
@@ -196,7 +196,7 @@ with patch("sys.exit", new_callable=lambda: 42) as explicit_new_callable_enter:
 
 
 @patch.object(Decimal, "exp")
-def obj_f_default_new(i: int, mock: MagicMock) -> str:
+def obj_f_default_new(i: int, mock: MagicMock[..., Any]) -> str:
     return "asdf"
 
 
@@ -219,7 +219,7 @@ obj_f_explicit_new_callable("a")  # Same as default new
 
 
 with patch.object(Decimal, "exp") as obj_default_new_enter:
-    assert_type(obj_default_new_enter, Union[MagicMock, AsyncMock])
+    assert_type(obj_default_new_enter, Union[MagicMock[..., Any], AsyncMock[..., Any]])
 
 with patch.object(Decimal, "exp", new=42) as obj_explicit_new_enter:
     assert_type(obj_explicit_new_enter, int)

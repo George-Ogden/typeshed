@@ -16,40 +16,40 @@ _P = ParamSpec("_P")
 if sys.version_info >= (3, 13):
     # ThreadingMock added in 3.13
     __all__ = (
-        "Mock",
-        "MagicMock",
-        "patch",
-        "sentinel",
-        "DEFAULT",
         "ANY",
+        "DEFAULT",
+        "FILTER_DIR",
+        "AsyncMock",
+        "MagicMock",
+        "Mock",
+        "NonCallableMagicMock",
+        "NonCallableMock",
+        "PropertyMock",
+        "ThreadingMock",
         "call",
         "create_autospec",
-        "ThreadingMock",
-        "AsyncMock",
-        "FILTER_DIR",
-        "NonCallableMock",
-        "NonCallableMagicMock",
         "mock_open",
-        "PropertyMock",
+        "patch",
         "seal",
+        "sentinel",
     )
 else:
     __all__ = (
-        "Mock",
-        "MagicMock",
-        "patch",
-        "sentinel",
-        "DEFAULT",
         "ANY",
+        "DEFAULT",
+        "FILTER_DIR",
+        "AsyncMock",
+        "MagicMock",
+        "Mock",
+        "NonCallableMagicMock",
+        "NonCallableMock",
+        "PropertyMock",
         "call",
         "create_autospec",
-        "AsyncMock",
-        "FILTER_DIR",
-        "NonCallableMock",
-        "NonCallableMagicMock",
         "mock_open",
-        "PropertyMock",
+        "patch",
         "seal",
+        "sentinel",
     )
 
 FILTER_DIR: bool  # controls the way mock objects respond to `dir` function
@@ -208,14 +208,14 @@ class NonCallableMock(Base, Any):
     else:
         def _calls_repr(self, prefix: str = "Calls") -> str: ...
 
-class CallableMixin(Base):
+class CallableMixin(Base, Generic[_P, _R]):
     side_effect: Any
     def __init__(
         self,
         spec: Any | None = None,
-        side_effect: Any | None = None,
-        return_value: Any = ...,
-        wraps: Any | None = None,
+        side_effect: Callable[_P, Any] | Iterable[_R | Exception | type[Exception]] | None = None,
+        return_value: _R = ...,
+        wraps: Callable[_P, _R] | None = None,
         name: Any | None = None,
         spec_set: Any | None = None,
         parent: Any | None = None,
@@ -224,9 +224,9 @@ class CallableMixin(Base):
         _new_parent: Any | None = None,
         **kwargs: Any,
     ) -> None: ...
-    def __call__(self, *args: Any, **kwargs: Any) -> Any: ...
+    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R: ...
 
-class Mock(CallableMixin, NonCallableMock): ...
+class Mock(CallableMixin[_P, _R], NonCallableMock): ...
 
 class _patch(Generic[_T]):
     attribute_name: Any
@@ -375,7 +375,7 @@ class _patcher:
         unsafe: bool = False,
         # kwargs are passed to the MagicMock/AsyncMock constructor
         **kwargs: Any,
-    ) -> _patch_pass_arg[MagicMock | AsyncMock]: ...
+    ) -> _patch_pass_arg[MagicMock[..., Any] | AsyncMock[..., Any]]: ...
     # This overload also covers the case, where new==DEFAULT. In this case, the return type is _patch[Any].
     # Ideally we'd be able to add an overload for it so that the return type is _patch[MagicMock],
     # but that's impossible with the current type system.
@@ -424,7 +424,7 @@ class _patcher:
         unsafe: bool = False,
         # kwargs are passed to the MagicMock/AsyncMock constructor
         **kwargs: Any,
-    ) -> _patch_pass_arg[MagicMock | AsyncMock]: ...
+    ) -> _patch_pass_arg[MagicMock[..., Any] | AsyncMock[..., Any]]: ...
     @overload
     @staticmethod
     def multiple(
@@ -475,7 +475,7 @@ class MagicMixin(Base):
     def __init__(self, *args: Any, **kw: Any) -> None: ...
 
 class NonCallableMagicMock(MagicMixin, NonCallableMock): ...
-class MagicMock(MagicMixin, Mock): ...
+class MagicMock(MagicMixin, Mock[_P, _R]): ...
 
 class AsyncMockMixin(Base):
     def __init__(self, *args: Any, **kwargs: Any) -> None: ...
@@ -495,7 +495,7 @@ class AsyncMockMixin(Base):
 class AsyncMagicMixin(MagicMixin):
     def __init__(self, *args: Any, **kw: Any) -> None: ...
 
-class AsyncMock(AsyncMockMixin, AsyncMagicMixin, Mock):
+class AsyncMock(AsyncMockMixin, AsyncMagicMixin, Mock[_P, _R]):
     # Improving the `reset_mock` signature.
     # It is defined on `AsyncMockMixin` with `*args, **kwargs`, which is not ideal.
     # But, `NonCallableMock` super-class has the better version.
@@ -557,9 +557,9 @@ class _SpecState:
 
 def mock_open(mock: Any | None = None, read_data: Any = "") -> Any: ...
 
-class PropertyMock(Mock):
+class PropertyMock(Mock[..., _T], Generic[_T]):
     def __get__(self, obj: _T, obj_type: type[_T] | None = None) -> Self: ...
-    def __set__(self, obj: Any, val: Any) -> None: ...
+    def __set__(self, obj: Any, val: _T) -> None: ...
 
 if sys.version_info >= (3, 13):
     class ThreadingMixin(Base):
@@ -571,6 +571,6 @@ if sys.version_info >= (3, 13):
         def wait_until_called(self, *, timeout: float | None | _SentinelObject = ...) -> None: ...
         def wait_until_any_call_with(self, *args: Any, **kwargs: Any) -> None: ...
 
-    class ThreadingMock(ThreadingMixin, MagicMixin, Mock): ...
+    class ThreadingMock(ThreadingMixin, MagicMixin, Mock[_P, _R]): ...
 
 def seal(mock: Any) -> None: ...
